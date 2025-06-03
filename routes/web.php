@@ -1,37 +1,32 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\GoogleAuthController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\TaskController;
 
 Route::get('/', function () {
-    return redirect('login');
+    if(auth()->check()) {
+        return redirect()->route('tasks.index');
+    } else {
+        return redirect()->route('login');
+    }
 });
+Route::get('/google/callback', [GoogleAuthController::class, 'callback'])->name('google.callback');
+Route::get('tasks/shared-tasks/{token}', [TaskController::class, 'showShared'])->name('tasks.show_shared');
 
-Route::get('/dashboard', function () {
-    return view('dashboard');  // Widok po zalogowaniu - stwórz plik dashboard.blade.php
-})->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware(['auth'])->group(function () {
-    // 👇 Najpierw konkretna trasa
-    Route::get('tasks/revisions', [TaskController::class, 'allRevisions'])->name('tasks.revisions');
+
+    Route::get('tasks/history', [TaskController::class, 'allRevisions'])->name('tasks.history');
+    Route::get('tasks/{task}/history', [TaskController::class, 'taskRevisions'])->name('tasks.history.task');
+
     Route::resource('tasks', TaskController::class);
 
-    // Widok generowania linku do udostępnienia
+
     Route::get('tasks/{task}/share', [TaskController::class, 'share'])->name('tasks.share');
 
-
-// 👇 Potem trasy dynamiczne
-    Route::get('tasks/{task}', [TaskController::class, 'show'])->name('tasks.show');
-
-    // Historia konkretnego zadania (dodaj tę trasę)
-    Route::get('tasks/{task}/revisions', [TaskController::class, 'taskRevisions'])->name('tasks.revisions.task');
-
-    // Synchronizacja z Google Calendar (POST)
-    Route::post('tasks/{task}/sync-google', [TaskController::class, 'syncGoogleCalendar'])->name('tasks.sync_google');
-
-
+    Route::get('/google/connect', [GoogleAuthController::class, 'redirect'])->name('google.connect');
+    Route::post('/tasks/{task}/sync_google', [GoogleAuthController::class, 'sync'])->name('tasks.sync_google');
+    Route::post('/google/logout', [GoogleAuthController::class, 'logout'])->name('google.logout');
 });
-
-Route::get('tasks/shared-tasks/{token}', [TaskController::class, 'showShared'])->name('tasks.show_shared');
 require __DIR__.'/auth.php';

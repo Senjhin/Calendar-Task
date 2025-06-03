@@ -3,42 +3,47 @@
 namespace App\Http\Controllers;
 
 use App\Models\Task;
-use App\Models\TaskRevision;
+use App\Models\TaskShare;
+use App\Models\TaskHistory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
-use Illuminate\Support\Carbon;
+use Carbon\Carbon;
 
 class TaskController extends Controller
 {
     public function index(Request $request)
-{
-    $query = Task::where('user_id', auth()->id());
+    {
+        $query = Task::query()->where('user_id', auth()->id());
 
-    if ($request->filled('status')) {
-        $query->where('status', $request->status);
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('priority')) {
+            $query->where('priority', $request->priority);
+        }
+
+        if ($request->filled('due_date_from')) {
+            $query->where('due_date', '>=', $request->due_date_from . ' 00:00:00');
+        }
+
+        if ($request->filled('due_date_to')) {
+            $query->where('due_date', '<=', $request->due_date_to . ' 23:59:59');
+        }
+
+        $query->orderBy('due_date', 'asc');
+
+        $tasks = $query->paginate(10);
+
+        return view('tasks.index', [
+            'tasks' => $tasks,
+            'status' => $request->status,
+            'priority' => $request->priority,
+            'due_date_from' => $request->due_date_from,
+            'due_date_to' => $request->due_date_to,
+        ]);
     }
-
-    if ($request->filled('priority')) {
-        $query->where('priority', $request->priority);
-    }
-
-    if ($request->filled('due_date_from')) {
-        $query->whereDate('due_date', '>=', $request->due_date_from);
-    }
-
-    if ($request->filled('due_date_to')) {
-        $query->whereDate('due_date', '<=', $request->due_date_to);
-    }
-
-    $tasks = $query
-        ->orderBy('due_date', 'asc')
-        ->orderByRaw("FIELD(priority, 'high', 'medium', 'low')")
-        ->paginate(10); // <--- TUTAJ
-
-    return view('tasks.index', compact('tasks'));
-}
 
     public function create()
     {
@@ -47,170 +52,143 @@ class TaskController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
-            'title' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
-            'priority' => ['required', Rule::in(['low', 'medium', 'high'])],
-            'status' => ['required', Rule::in(['to-do', 'in-progress', 'done'])],
-            'due_date' => [
-                'required',
-                'date',
-                function ($attribute, $value, $fail) use ($request) {
-                    $dueDate = Carbon::parse($value);
-                    if (in_array($request->status, ['to-do', 'in-progress']) && $dueDate->isPast()) {
-                        $fail('Due date must not be in the past for tasks that are not done.');
-                    }
-                },
-            ],
-        ]);
-
-        $task = new Task($request->all());
-        $task->user_id = auth()->id();
-        $task->save();
-
-        return redirect()->route('tasks.index')->with('success', 'Task added successfully.');
-    }
-
-    public function show(Task $task): \Illuminate\Contracts\View\View|\Illuminate\Foundation\Application|\Illuminate\Contracts\View\Factory
-    {
-        if ($task->user_id !== auth()->id()) {
-            abort(403, 'Unauthorized action.');
-        }
-        return view('tasks.show', compact('task'));
-    }
-
-    public function edit(Task $task): \Illuminate\Contracts\View\View|\Illuminate\Foundation\Application|\Illuminate\Contracts\View\Factory
-    {
-        if ($task->user_id !== auth()->id()) {
-            abort(403);
-        }
-
-        return view('tasks.edit', compact('task'));
-    }
-    public function allRevisions(): \Illuminate\Contracts\View\View|\Illuminate\Foundation\Application|\Illuminate\Contracts\View\Factory
-    {
-        $userId = auth()->id();
-
-        // Pobierz wszystkie rewizje dla zadań tego użytkownika, posortowane malejąco i paginowane
-        $revisions = TaskRevision::whereHas('task', function ($query) use ($userId) {
-                $query->where('user_id', $userId);
-            })
-            ->with('task') // eager load task dla optymalizacji
-            ->orderBy('created_at', 'desc')
-            ->paginate(20);
-
-        return view('tasks.all_revisions', compact('revisions'));
-    }
-
-
-    public function taskRevisions(Task $task)
-    {
-        if ($task->user_id !== auth()->id()) {
-            abort(403);
-        }
-
-        $revisions = TaskRevision::where('task_id', $task->id)
-            ->orderBy('created_at', 'desc')
-            ->paginate(20);
-
-        return view('tasks.revisions', compact('revisions', 'task'));
-    }
-
-
-    public function update(Request $request, Task $task): \Illuminate\Http\RedirectResponse
-    {
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'priority' => 'required|in:low,medium,high',
-            'status' => 'required|string',
-            'due_date' => 'nullable|date',
+            'status' => 'required|in:to-do,in progress,done',
+            'due_date' => 'required|date|after_or_equal:today',
         ]);
 
-        // Zachowaj stare wartości
-        $oldValues = $task->only(array_keys($validated));
+        $task = Auth::user()->tasks()->create($validated);
 
-        // Aktualizuj zadanie
-        $task->update($validated);
-
-        // Nowe wartości po update
-        $newValues = $task->only(array_keys($validated));
-
-        // Zapisywanie rewizji
-        foreach ($validated as $field => $newValue) {
-            $oldValue = $oldValues[$field] ?? null;
-            if ($oldValue != $newValue) {
-                TaskRevision::create([
-                    'task_id' => $task->id,
-                    'user_id' => auth()->id(),
-                    'field_name' => $field,
-                    'old_values' => $oldValue ?? '',
-                    'new_values' => $newValue ?? '',
-                ]);
-            }
-        }
-
-        return redirect()->route('tasks.index')->with('success', 'Zadanie zaktualizowane i rewizja zapisana.');
+        return redirect()->route('tasks.show', $task)->with('success', 'Task created.');
     }
 
-
-
-    public function destroy(Task $task): \Illuminate\Http\RedirectResponse
+    public function show(Task $task)
     {
-        if ($task->user_id !== auth()->id()) {
-            abort(403, 'Unauthorized action.');
-        }
+        $this->authorizeTaskOwner($task);
 
-        $task->delete();
-
-        return redirect()->route('tasks.index')->with('success', 'Task deleted successfully.');
+        return view('tasks.show', compact('task'));
     }
 
     public function showShared($token)
     {
-        $task = Task::where('public_token', $token)
-            ->where('public_token_expires_at', '>', now())
+        $taskShare = TaskShare::where('token', $token)
+            ->where('expires_at', '>', Carbon::now())
             ->firstOrFail();
+
+        $task = $taskShare->task;
 
         return view('tasks.show_shared', compact('task'));
     }
 
-
-
-
-    // Generowanie linku do udostępniania (token ważny 24h)
-    public function share(Task $task): \Illuminate\Contracts\View\View|\Illuminate\Foundation\Application|\Illuminate\Contracts\View\Factory
+    public function edit(Task $task)
     {
-        if ($task->user_id !== auth()->id()) {
-            abort(403, 'Unauthorized action.');
-        }
+        $this->authorizeTaskOwner($task);
 
-        if (!$task->public_token || Carbon::parse($task->public_token_expires_at)->isPast()) {
-            $task->public_token = Str::random(32);
-            $task->public_token_expires_at = Carbon::now()->addHours(24);
-            $task->save();
-        }
-
-        $publicLink = route('tasks.show_shared', $task->public_token);
-
-        return view('tasks.share', compact('task', 'publicLink'));
+        return view('tasks.edit', compact('task'));
     }
 
-
-    // Przykład synchronizacji z Google Calendar (implementację dostosuj)
-    public function syncGoogleCalendar(Task $task): \Illuminate\Http\RedirectResponse
+    public function update(Request $request, Task $task)
     {
-        if ($task->user_id !== auth()->id()) {
-            abort(403, 'Unauthorized action.');
+        $this->authorizeTaskOwner($task);
+
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'priority' => 'required|in:low,medium,high',
+            'status' => 'required|in:to-do,in progress,done',
+            'due_date' => 'required|date|after_or_equal:today',
+        ]);
+
+        $this->saveTaskHistory($task, $validated);
+
+        $task->update($validated);
+
+        return redirect()->route('tasks.show', $task)->with('success', 'Task updated.');
+    }
+
+    protected function saveTaskHistory(Task $task, array $newData)
+    {
+        $userId = auth()->id();
+        $changedAt = now();
+
+        foreach ($newData as $field => $newValue) {
+            $oldValue = $task->$field;
+
+            if ($oldValue != $newValue) {
+                \DB::table('task_histories')->insert([
+                    'task_id'    => $task->id,
+                    'user_id'    => $userId,
+                    'field'      => $field,
+                    'old_value'  => $oldValue,
+                    'new_value'  => $newValue,
+                    'changed_at' => $changedAt,
+                ]);
+            }
         }
+    }
 
-        try {
-            // Przykład: wywołanie serwisu integracji z Google Calendar
-            app('google-calendar')->addEventForTask($task);
+    public function destroy(Task $task)
+    {
+        $this->authorizeTaskOwner($task);
 
-            return redirect()->route('tasks.show', $task)->with('success', 'Task synced with Google Calendar.');
-        } catch (\Exception $e) {
-            return redirect()->route('tasks.show', $task)->with('error', 'Google Calendar sync failed: ' . $e->getMessage());
+        $task->delete();
+
+        return redirect()->route('tasks.index')->with('success', 'Task deleted.');
+    }
+
+    public function share(Task $task)
+    {
+        $this->authorizeTaskOwner($task);
+
+        $token = Str::random(32);
+        $expiresAt = Carbon::now()->addHours(24);
+
+        $task->taskShares()->delete();
+
+        $taskShare = $task->taskShares()->create([
+            'token' => $token,
+            'expires_at' => $expiresAt,
+        ]);
+
+        $publicLink = route('tasks.show_shared', $token);
+
+        return view('tasks.share', compact('publicLink', 'expiresAt', 'task'));
+    }
+
+    public function allRevisions()
+    {
+        $user = Auth::user();
+
+        $revisions = TaskHistory::whereHas('task', function ($query) use ($user) {
+            $query->where('user_id', $user->id);
+        })
+            ->with(['task.user'])
+            ->orderByDesc('changed_at')
+            ->paginate(10);
+
+        return view('tasks.all_history', compact('revisions'));
+    }
+
+    public function taskRevisions(Task $task)
+    {
+        $this->authorizeTaskOwner($task);
+
+        // Tutaj zmieniamy get() na paginate(10)
+        $revisions = $task->taskHistories()
+            ->with('task.user')
+            ->orderByDesc('changed_at')
+            ->paginate(10);
+
+        return view('tasks.history', compact('revisions', 'task'));
+    }
+
+    protected function authorizeTaskOwner(Task $task)
+    {
+        if ($task->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized.');
         }
     }
 }

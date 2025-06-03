@@ -1,6 +1,6 @@
 <nav class="navbar navbar-expand-lg navbar-light bg-light">
     <div class="container">
-        <a class="navbar-brand" href="{{ route('tasks.index') }}">TaskPlanner (Interview Tech Task)</a>
+        <a class="navbar-brand" href="{{ route('tasks.index') }}">Interview Tech Task</a>
         <div class="d-flex">
             @auth
                 <form method="POST" action="{{ route('logout') }}">

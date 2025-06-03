@@ -13,15 +13,16 @@ return new class extends Migration
     {
         Schema::create('tasks', function (Blueprint $table) {
             $table->id();
-            $table->string('title');               // <-- to musi być
-            $table->text('description')->nullable();
-            $table->enum('priority', ['low', 'medium', 'high']);
-            $table->enum('status', ['to-do', 'in-progress', 'done']);
-            $table->date('due_date');
+
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->string('title', 255);
+            $table->text('description')->nullable();
+            $table->enum('priority', ['low', 'medium', 'high'])->default('medium');
+            $table->enum('status', ['to-do', 'in progress', 'done'])->default('to-do');
+            $table->datetime('due_date');
             $table->timestamps();
+            $table->boolean('google_synced')->default(false);
         });
-        //
     }
 
     /**
@@ -29,6 +30,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        //
+        Schema::dropIfExists('tasks');
     }
 };

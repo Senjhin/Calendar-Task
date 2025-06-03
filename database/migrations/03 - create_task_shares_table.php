@@ -11,9 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('tasks', function (Blueprint $table) {
-            $table->string('public_token')->unique()->nullable()->after('status');
-            $table->timestamp('public_token_expires_at')->nullable()->after('public_token');
+        Schema::create('task_shares', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('task_id')->constrained()->onDelete('cascade');
+            $table->uuid('token')->unique()->default(Str::uuid());
+            $table->timestamp('expires_at');
+            $table->timestamps();
         });
     }
 
@@ -22,8 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('tasks', function (Blueprint $table) {
-            //
-        });
+        Schema::dropIfExists('task_shares');
     }
 };

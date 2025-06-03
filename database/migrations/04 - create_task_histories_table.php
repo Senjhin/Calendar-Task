@@ -11,12 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('task_shares', function (Blueprint $table) {
+        Schema::create('task_histories', function (Blueprint $table) {
             $table->id();
             $table->foreignId('task_id')->constrained()->onDelete('cascade');
-            $table->string('token')->unique();
-            $table->timestamp('expires_at');
-            $table->timestamps();
+            $table->foreignId('user_id')->nullable()->constrained()->onDelete('set null');
+            $table->string('field');
+            $table->text('old_value')->nullable();
+            $table->text('new_value')->nullable();
+            $table->timestamp('changed_at')->useCurrent();
         });
     }
 
@@ -25,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('task_shares');
+        Schema::dropIfExists('task_histories');
     }
 };

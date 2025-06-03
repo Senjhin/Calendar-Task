@@ -5,16 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class TaskShare extends Model
+class GoogleEvent extends Model
 {
-
     protected $fillable = [
         'task_id',
-        'token',
-        'expires_at',
+        'google_event_id',
     ];
-
-    protected $dates = ['expires_at'];
 
     public function task()
     {
