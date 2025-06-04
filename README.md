@@ -37,18 +37,20 @@
 
 Otwórz powershell jako administrator i uruchom projekt:
 
-    cd C:\xampp\htdocs
-    git clone https://github.com/Senjhin/GrupaRBR-Interview
-    cd InterviewTask;
-    composer install;
-    npm install;
-    php artisan config:clear; 
-    php artisan cache:clear; 
-    php artisan route:clear; 
-    php artisan view:clear; 
-    php artisan config:cache; 
-    php artisan migrate --seed; 
-    php artisan serve
+  cd C:\xampp\htdocs
+  git clone https://github.com/Senjhin/GrupaRBR-Interview
+  cd GrupaRBR-Interview
+  composer install
+  npm install
+  npm run build
+  php artisan config:clear
+  php artisan cache:clear
+  php artisan route:clear
+  php artisan view:clear
+  php artisan config:cache
+  php artisan migrate --seed
+  php artisan serve
+
 
 ## 4. Otwórz w przeglądarce 
 - Strona będzie dostępna pod adresem http://localhost:8000/
