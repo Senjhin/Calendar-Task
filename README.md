@@ -18,12 +18,27 @@
   - MySQL
 - Wejdź do katalogu `htdocs` (domyślnie `C:\xampp\htdocs`)
 
-## 3. Klonowanie repozytorium
+## 3. Tworzenie bazy danych w phpMyAdmin
+- Otwórz przeglądarkę i wejdź na adres: http://localhost/phpmyadmin
+
+- Zaloguj się, jeśli wymagane (domyślnie użytkownik: root, bez hasła)
+
+- Kliknij zakładkę Bazy danych
+
+- W polu Utwórz bazę danych wpisz nazwę: todo_app
+
+- Wybierz kodowanie, np. utf8mb4_unicode_ci
+
+- Kliknij Utwórz
+
+- Baza todo_app jest gotowa do użycia
+
+## 4. Klonowanie repozytorium
 
 Otwórz powershell jako administrator i uruchom projekt:
 
     cd C:\xampp\htdocs
-    git clone https://github.com/Senjhin/InterviewTask;
+    git clone https://github.com/Senjhin/GrupaRBR-Interview
     cd InterviewTask;
     composer install;
     npm install;
@@ -40,6 +55,9 @@ Otwórz powershell jako administrator i uruchom projekt:
 - Zaloguj się na konto które otrzymało seedy:
       - Email: `Mateuszkordysinvestments@gmail.com`
       - Hasło: `Haslo123`
-- Aby wysłać przypomnienie odnośnie zadania ( manualne) proszę użyć polecenia ( w głównym folderze projektu):
+      
+- Aby wysłać przypomnienie odnośnie terminu zadania: 
     php artisan reminders:send
+
+**Uwaga:** Polecenie należy uruchomić w głównym katalogu projektu
 
