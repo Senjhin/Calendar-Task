@@ -38,7 +38,7 @@
 Otwórz powershell jako administrator i uruchom projekt:
 
 	cd C:\xampp\htdocs;
-	git clone https://github.com/Senjhin/GrupaRBR-Interview;
+	git clone https://github.com/Senjhin/Calendar-Task;
 	cd GrupaRBR-Interview;
 	composer install;
 	npm install;
